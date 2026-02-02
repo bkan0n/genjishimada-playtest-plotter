@@ -3,6 +3,7 @@ package handler
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -81,4 +82,46 @@ func TestValidateRequest(t *testing.T) {
 
 func contains(s, substr string) bool {
 	return bytes.Contains([]byte(s), []byte(substr))
+}
+
+func TestChartHandler(t *testing.T) {
+	body := `{"votes":{"Medium":10,"Medium +":5}}`
+	req := httptest.NewRequest(http.MethodPost, "/chart", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	ChartHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("handler returned wrong status: got %d want %d", rr.Code, http.StatusOK)
+	}
+
+	contentType := rr.Header().Get("Content-Type")
+	if contentType != "image/webp" {
+		t.Errorf("wrong content type: got %s want image/webp", contentType)
+	}
+
+	if rr.Body.Len() == 0 {
+		t.Error("expected non-empty response body")
+	}
+}
+
+func TestChartHandlerError(t *testing.T) {
+	body := `{"votes":{}}`
+	req := httptest.NewRequest(http.MethodPost, "/chart", bytes.NewBufferString(body))
+
+	rr := httptest.NewRecorder()
+	ChartHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("handler returned wrong status: got %d want %d", rr.Code, http.StatusBadRequest)
+	}
+
+	var errResp map[string]string
+	if err := json.Unmarshal(rr.Body.Bytes(), &errResp); err != nil {
+		t.Fatalf("failed to parse error response: %v", err)
+	}
+	if _, ok := errResp["error"]; !ok {
+		t.Error("expected error field in response")
+	}
 }

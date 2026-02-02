@@ -44,3 +44,33 @@ func ParseAndValidate(r *http.Request) (map[string]int, error) {
 
 	return req.Votes, nil
 }
+
+// ChartHandler handles POST /chart requests
+func ChartHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	votes, err := ParseAndValidate(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	imgData, err := chart.RenderChart(votes)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to generate chart")
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/webp")
+	w.WriteHeader(http.StatusOK)
+	w.Write(imgData)
+}
+
+func writeError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
