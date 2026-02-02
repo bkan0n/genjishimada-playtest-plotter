@@ -49,3 +49,21 @@ func TestDifficultyIndexInvalid(t *testing.T) {
 		t.Error("expected DifficultyIndex to return false for invalid level")
 	}
 }
+
+func TestParseHexColor(t *testing.T) {
+	tests := []struct {
+		hex     string
+		r, g, b uint8
+	}{
+		{"#66ff66", 0x66, 0xff, 0x66},
+		{"#990000", 0x99, 0x00, 0x00},
+		{"#ffb300", 0xff, 0xb3, 0x00},
+	}
+	for _, tt := range tests {
+		r, g, b := ParseHexColor(tt.hex)
+		if r != tt.r || g != tt.g || b != tt.b {
+			t.Errorf("ParseHexColor(%q) = (%d, %d, %d), want (%d, %d, %d)",
+				tt.hex, r, g, b, tt.r, tt.g, tt.b)
+		}
+	}
+}

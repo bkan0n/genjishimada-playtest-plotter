@@ -1,6 +1,8 @@
 // chart/difficulty.go
 package chart
 
+import "strconv"
+
 // DifficultyLevels ordered from easiest to hardest
 var DifficultyLevels = []string{
 	"Easy -", "Easy", "Easy +",
@@ -90,4 +92,15 @@ var DifficultyRanges = map[string]DifficultyRange{
 	"Extreme":     {8.24, 8.82, false},
 	"Extreme +":   {8.82, 9.41, false},
 	"Hell":        {9.41, 10.0, true},
+}
+
+// ParseHexColor parses a hex color string like "#ff00ff" to RGB values
+func ParseHexColor(hex string) (r, g, b uint8) {
+	if len(hex) != 7 || hex[0] != '#' {
+		return 0, 0, 0
+	}
+	rVal, _ := strconv.ParseUint(hex[1:3], 16, 8)
+	gVal, _ := strconv.ParseUint(hex[3:5], 16, 8)
+	bVal, _ := strconv.ParseUint(hex[5:7], 16, 8)
+	return uint8(rVal), uint8(gVal), uint8(bVal)
 }
