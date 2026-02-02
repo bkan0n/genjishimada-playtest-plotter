@@ -132,7 +132,7 @@ func drawBars(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int) 
 		surface.Fill()
 	}
 
-	// Draw each bar
+	// Draw each bar with gradient
 	for i := minIdx; i <= maxIdx; i++ {
 		level := DifficultyLevels[i]
 		voteCount := votes[level]
@@ -141,14 +141,37 @@ func drawBars(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int) 
 		barHeight := (float64(voteCount) / float64(maxVotes)) * chartHeight
 		y := float64(TopMargin) + chartHeight - barHeight
 
-		// Set bar color
+		// Get base color
 		r, g, b := ParseHexColor(DifficultyColors[level])
-		surface.SetSourceRGB(float64(r)/255, float64(g)/255, float64(b)/255)
+		rf, gf, bf := float64(r)/255, float64(g)/255, float64(b)/255
+
+		// Create vertical gradient (lighter at top, darker at bottom)
+		gradient := cairo.NewPatternLinear(cairo.Linear{
+			X0: x, Y0: y,
+			X1: x, Y1: y + barHeight,
+		})
+		// Lighter color at top (add 30% brightness)
+		gradient.AddColorStopRGB(0, minF(rf*1.3, 1.0), minF(gf*1.3, 1.0), minF(bf*1.3, 1.0))
+		// Base color at middle
+		gradient.AddColorStopRGB(0.4, rf, gf, bf)
+		// Darker color at bottom (reduce by 30%)
+		gradient.AddColorStopRGB(1, rf*0.7, gf*0.7, bf*0.7)
+
+		surface.SetSource(gradient)
 
 		// Draw rounded rectangle (top corners only)
 		drawRoundedTopRect(surface, x, y, barWidth, barHeight, BarRadius)
 		surface.Fill()
+
+		gradient.Destroy()
 	}
+}
+
+func minF(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func drawRoundedTopRect(surface *cairo.Surface, x, y, w, h, r float64) {
@@ -314,19 +337,21 @@ func drawAverageLine(surface *cairo.Surface, avg float64, avgLabel string, minId
 	xRatio := (avg - minValue) / (maxValue - minValue)
 	x := float64(LeftMargin) + xRatio*chartWidth
 
-	// Draw dashed line
-	surface.SetSourceRGB(1, 1, 1)
-	surface.SetLineWidth(2)
-	dashes := []float64{6, 4}
+	// Get the difficulty color for the average
+	r, g, b := ParseHexColor(DifficultyColors[avgLabel])
+	rf, gf, bf := float64(r)/255, float64(g)/255, float64(b)/255
+
+	// Draw dashed line in difficulty color
+	surface.SetSourceRGB(rf, gf, bf)
+	surface.SetLineWidth(3)
+	dashes := []float64{8, 5}
 	surface.SetDash(dashes, len(dashes), 0)
 
 	surface.MoveTo(x, float64(TopMargin))
 	surface.LineTo(x, float64(TopMargin)+chartHeight)
 	surface.Stroke()
 
-	// No need to reset dash as we're done drawing dashed lines
-
-	// Draw label
+	// Draw label in difficulty color (no need to reset dash for text)
 	surface.SelectFontFace("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
 	surface.SetFontSize(18)
 
