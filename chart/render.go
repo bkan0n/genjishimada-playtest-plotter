@@ -89,6 +89,12 @@ func surfaceToImage(surface *cairo.Surface) *image.RGBA {
 	return img
 }
 
+const (
+	ShadowOffsetX = 4
+	ShadowOffsetY = 4
+	ShadowAlpha   = 0.3
+)
+
 func drawBars(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int) {
 	// Calculate dimensions
 	chartWidth := float64(CanvasWidth - LeftMargin - RightMargin)
@@ -106,6 +112,24 @@ func drawBars(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int) 
 	}
 	if maxVotes == 0 {
 		maxVotes = 1
+	}
+
+	// Draw shadows first (so they appear behind all bars)
+	surface.SetSourceRGBA(0, 0, 0, ShadowAlpha)
+	for i := minIdx; i <= maxIdx; i++ {
+		level := DifficultyLevels[i]
+		voteCount := votes[level]
+		if voteCount == 0 {
+			continue
+		}
+
+		x := float64(LeftMargin) + float64(i-minIdx)*(barWidth+BarGap)
+		barHeight := (float64(voteCount) / float64(maxVotes)) * chartHeight
+		y := float64(TopMargin) + chartHeight - barHeight
+
+		// Draw shadow (offset down and right)
+		drawRoundedTopRect(surface, x+ShadowOffsetX, y+ShadowOffsetY, barWidth, barHeight, BarRadius)
+		surface.Fill()
 	}
 
 	// Draw each bar
