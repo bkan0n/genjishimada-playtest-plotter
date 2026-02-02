@@ -18,7 +18,7 @@ const (
 	TopMargin    = 80
 	BottomMargin = 120
 	BarGap       = 12
-	BarRadius    = 8
+	BarRadius    = 16
 )
 
 var (
@@ -43,6 +43,7 @@ func RenderChart(votes map[string]int) ([]byte, error) {
 	minIdx, maxIdx := CalculateWindow(votes)
 
 	// Draw chart elements
+	drawYAxisLines(surface, votes, minIdx, maxIdx) // Draw grid lines first (behind bars)
 	drawBars(surface, votes, minIdx, maxIdx)
 	drawXAxisLabels(surface, minIdx, maxIdx)
 	drawYAxis(surface, votes, minIdx, maxIdx)
@@ -165,6 +166,36 @@ func drawXAxisLabels(surface *cairo.Surface, minIdx, maxIdx int) {
 	}
 }
 
+func drawYAxisLines(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int) {
+	// Find max votes
+	maxVotes := 0
+	for i := minIdx; i <= maxIdx; i++ {
+		level := DifficultyLevels[i]
+		if v := votes[level]; v > maxVotes {
+			maxVotes = v
+		}
+	}
+	if maxVotes == 0 {
+		maxVotes = 1
+	}
+
+	chartWidth := float64(CanvasWidth - LeftMargin - RightMargin)
+	chartHeight := float64(CanvasHeight - TopMargin - BottomMargin)
+
+	// Draw faint horizontal grid lines
+	surface.SetSourceRGBA(1, 1, 1, 0.15) // White with 15% opacity
+	surface.SetLineWidth(1)
+
+	for i := 0; i <= 4; i++ {
+		value := (maxVotes * i) / 4
+		y := float64(TopMargin) + chartHeight - (float64(value)/float64(maxVotes))*chartHeight
+
+		surface.MoveTo(float64(LeftMargin), y)
+		surface.LineTo(float64(LeftMargin)+chartWidth, y)
+		surface.Stroke()
+	}
+}
+
 func drawYAxis(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int) {
 	// Find max votes
 	maxVotes := 0
@@ -279,7 +310,7 @@ func drawAverageLine(surface *cairo.Surface, avg float64, avgLabel string, minId
 	extents := surface.TextExtents(labelText)
 
 	labelX := x - extents.Width/2
-	labelY := float64(TopMargin) - 20
+	labelY := float64(TopMargin) - 45
 
 	// Keep label in bounds
 	if labelX < float64(LeftMargin) {
