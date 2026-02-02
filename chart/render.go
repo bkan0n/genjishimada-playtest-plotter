@@ -13,11 +13,11 @@ import (
 const (
 	CanvasWidth  = 1400
 	CanvasHeight = 700
-	LeftMargin   = 60
-	RightMargin  = 40
-	TopMargin    = 60
-	BottomMargin = 80
-	BarGap       = 8
+	LeftMargin   = 80
+	RightMargin  = 60
+	TopMargin    = 80
+	BottomMargin = 120
+	BarGap       = 12
 	BarRadius    = 8
 )
 
@@ -146,7 +146,7 @@ func drawRoundedTopRect(surface *cairo.Surface, x, y, w, h, r float64) {
 func drawXAxisLabels(surface *cairo.Surface, minIdx, maxIdx int) {
 	surface.SetSourceRGB(TextColor[0], TextColor[1], TextColor[2])
 	surface.SelectFontFace("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-	surface.SetFontSize(12)
+	surface.SetFontSize(18)
 
 	chartWidth := float64(CanvasWidth - LeftMargin - RightMargin)
 	numBars := maxIdx - minIdx + 1
@@ -160,7 +160,7 @@ func drawXAxisLabels(surface *cairo.Surface, minIdx, maxIdx int) {
 		extents := surface.TextExtents(level)
 		textX := x - extents.Width/2
 
-		surface.MoveTo(textX, float64(CanvasHeight-BottomMargin+20))
+		surface.MoveTo(textX, float64(CanvasHeight-BottomMargin+30))
 		surface.ShowText(level)
 	}
 }
@@ -180,7 +180,7 @@ func drawYAxis(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int)
 
 	surface.SetSourceRGB(TextColor[0], TextColor[1], TextColor[2])
 	surface.SelectFontFace("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-	surface.SetFontSize(12)
+	surface.SetFontSize(16)
 
 	chartHeight := float64(CanvasHeight - TopMargin - BottomMargin)
 
@@ -211,8 +211,8 @@ func formatInt(n int) string {
 
 func drawVoteCounts(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int) {
 	surface.SetSourceRGB(TextColor[0], TextColor[1], TextColor[2])
-	surface.SelectFontFace("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-	surface.SetFontSize(14)
+	surface.SelectFontFace("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+	surface.SetFontSize(18)
 
 	chartWidth := float64(CanvasWidth - LeftMargin - RightMargin)
 	chartHeight := float64(CanvasHeight - TopMargin - BottomMargin)
@@ -239,7 +239,7 @@ func drawVoteCounts(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx
 
 		x := float64(LeftMargin) + float64(i-minIdx)*(barWidth+BarGap) + barWidth/2
 		barHeight := (float64(voteCount) / float64(maxVotes)) * chartHeight
-		y := float64(TopMargin) + chartHeight - barHeight - 10
+		y := float64(TopMargin) + chartHeight - barHeight - 15
 
 		label := formatInt(voteCount)
 		extents := surface.TextExtents(label)
@@ -273,13 +273,13 @@ func drawAverageLine(surface *cairo.Surface, avg float64, avgLabel string, minId
 
 	// Draw label
 	surface.SelectFontFace("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-	surface.SetFontSize(14)
+	surface.SetFontSize(18)
 
 	labelText := "Avg: " + formatFloat(avg) + " (" + avgLabel + ")"
 	extents := surface.TextExtents(labelText)
 
 	labelX := x - extents.Width/2
-	labelY := float64(TopMargin) - 15
+	labelY := float64(TopMargin) - 20
 
 	// Keep label in bounds
 	if labelX < float64(LeftMargin) {
