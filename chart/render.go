@@ -11,23 +11,34 @@ import (
 	"github.com/ungerik/go-cairo"
 )
 
+// Cached encoder options - created once at startup
+var webpEncoderOptions *encoder.Options
+
+func init() {
+	opts, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 85)
+	if err != nil {
+		panic("failed to create webp encoder options: " + err.Error())
+	}
+	webpEncoderOptions = opts
+}
+
 const (
-	CanvasWidth  = 1400
-	CanvasHeight = 700
-	LeftMargin   = 80
-	RightMargin  = 60
-	TopMargin    = 80
-	BottomMargin = 120
-	BarGap       = 12
-	BarRadius    = 16
+	CanvasWidth  = 1000
+	CanvasHeight = 500
+	LeftMargin   = 60
+	RightMargin  = 45
+	TopMargin    = 75
+	BottomMargin = 70
+	BarGap       = 9
+	BarRadius    = 20
 )
 
 var (
 	BackgroundColor   = [3]float64{0.168, 0.176, 0.192} // #2b2d31
 	TextColor         = [3]float64{1.0, 1.0, 1.0}       // white
 	TextShadowColor   = [4]float64{0, 0, 0, 0.5}        // black with 50% opacity
-	TextShadowOffsetX = 2.0
-	TextShadowOffsetY = 2.0
+	TextShadowOffsetX = 1.5
+	TextShadowOffsetY = 1.5
 )
 
 // RenderChart generates a WebP chart image from vote data
@@ -45,26 +56,41 @@ func RenderChart(votes map[string]int) ([]byte, error) {
 	avg := CalculateWeightedAverage(votes)
 	avgLabel := AverageToLabel(avg)
 	minIdx, maxIdx := CalculateWindow(votes)
+	maxVotes := calculateMaxVotes(votes, minIdx, maxIdx)
 
 	// Draw chart elements
-	drawYAxisLines(surface, votes, minIdx, maxIdx) // Draw grid lines first (behind bars)
-	drawBars(surface, votes, minIdx, maxIdx)
+	drawYAxisLines(surface, maxVotes, minIdx, maxIdx) // Draw grid lines first (behind bars)
+	drawBars(surface, votes, minIdx, maxIdx, maxVotes)
 	drawXAxisLabels(surface, minIdx, maxIdx)
-	drawYAxis(surface, votes, minIdx, maxIdx)
-	drawVoteCounts(surface, votes, minIdx, maxIdx)
+	drawYAxis(surface, maxVotes)
+	drawVoteCounts(surface, votes, minIdx, maxIdx, maxVotes)
 	drawAverageLine(surface, avg, avgLabel, minIdx, maxIdx)
 
 	// Convert to image.RGBA
 	img := surfaceToImage(surface)
 
-	// Encode to WebP
-	var buf bytes.Buffer
-	options, _ := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 90)
-	if err := webp.Encode(&buf, img, options); err != nil {
+	// Encode to WebP with pre-allocated buffer
+	buf := bytes.NewBuffer(make([]byte, 0, 50*1024))
+	if err := webp.Encode(buf, img, webpEncoderOptions); err != nil {
 		return nil, err
 	}
 
 	return buf.Bytes(), nil
+}
+
+// calculateMaxVotes finds the maximum vote count in the visible window
+func calculateMaxVotes(votes map[string]int, minIdx, maxIdx int) int {
+	maxVotes := 0
+	for i := minIdx; i <= maxIdx; i++ {
+		level := DifficultyLevels[i]
+		if v := votes[level]; v > maxVotes {
+			maxVotes = v
+		}
+	}
+	if maxVotes == 0 {
+		return 1
+	}
+	return maxVotes
 }
 
 func surfaceToImage(surface *cairo.Surface) *image.RGBA {
@@ -74,21 +100,15 @@ func surfaceToImage(surface *cairo.Surface) *image.RGBA {
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 
-	// Cairo uses ARGB32 (premultiplied), need to convert to RGBA
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			i := (y*width + x) * 4
-			// Cairo ARGB32: B, G, R, A (little endian)
-			b := data[i]
-			g := data[i+1]
-			r := data[i+2]
-			a := data[i+3]
-			j := (y*width + x) * 4
-			img.Pix[j] = r
-			img.Pix[j+1] = g
-			img.Pix[j+2] = b
-			img.Pix[j+3] = a
-		}
+	// Optimized single-loop pixel conversion
+	// Cairo ARGB32 (little endian): B, G, R, A → Go RGBA: R, G, B, A
+	pixelCount := width * height
+	for i := 0; i < pixelCount; i++ {
+		off := i * 4
+		img.Pix[off] = data[off+2]   // R
+		img.Pix[off+1] = data[off+1] // G
+		img.Pix[off+2] = data[off]   // B
+		img.Pix[off+3] = data[off+3] // A
 	}
 	return img
 }
@@ -107,29 +127,17 @@ func drawTextWithShadow(surface *cairo.Surface, text string, x, y float64) {
 }
 
 const (
-	ShadowOffsetX = 4
-	ShadowOffsetY = 4
+	ShadowOffsetX = 3
+	ShadowOffsetY = 3
 	ShadowAlpha   = 0.3
 )
 
-func drawBars(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int) {
+func drawBars(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx, maxVotes int) {
 	// Calculate dimensions
 	chartWidth := float64(CanvasWidth - LeftMargin - RightMargin)
 	chartHeight := float64(CanvasHeight - TopMargin - BottomMargin)
 	numBars := maxIdx - minIdx + 1
 	barWidth := (chartWidth - float64(numBars-1)*BarGap) / float64(numBars)
-
-	// Find max votes for scaling
-	maxVotes := 0
-	for i := minIdx; i <= maxIdx; i++ {
-		level := DifficultyLevels[i]
-		if v := votes[level]; v > maxVotes {
-			maxVotes = v
-		}
-	}
-	if maxVotes == 0 {
-		maxVotes = 1
-	}
 
 	// Draw shadows first (so they appear behind all bars)
 	surface.SetSourceRGBA(0, 0, 0, ShadowAlpha)
@@ -187,7 +195,7 @@ func drawRoundedTopRect(surface *cairo.Surface, x, y, w, h, r float64) {
 
 func drawXAxisLabels(surface *cairo.Surface, minIdx, maxIdx int) {
 	surface.SelectFontFace("Bank Sans EF CY", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-	surface.SetFontSize(18)
+	surface.SetFontSize(16)
 
 	chartWidth := float64(CanvasWidth - LeftMargin - RightMargin)
 	numBars := maxIdx - minIdx + 1
@@ -206,19 +214,7 @@ func drawXAxisLabels(surface *cairo.Surface, minIdx, maxIdx int) {
 	}
 }
 
-func drawYAxisLines(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int) {
-	// Find max votes
-	maxVotes := 0
-	for i := minIdx; i <= maxIdx; i++ {
-		level := DifficultyLevels[i]
-		if v := votes[level]; v > maxVotes {
-			maxVotes = v
-		}
-	}
-	if maxVotes == 0 {
-		maxVotes = 1
-	}
-
+func drawYAxisLines(surface *cairo.Surface, maxVotes, minIdx, maxIdx int) {
 	chartWidth := float64(CanvasWidth - LeftMargin - RightMargin)
 	chartHeight := float64(CanvasHeight - TopMargin - BottomMargin)
 
@@ -236,21 +232,9 @@ func drawYAxisLines(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx
 	}
 }
 
-func drawYAxis(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int) {
-	// Find max votes
-	maxVotes := 0
-	for i := minIdx; i <= maxIdx; i++ {
-		level := DifficultyLevels[i]
-		if v := votes[level]; v > maxVotes {
-			maxVotes = v
-		}
-	}
-	if maxVotes == 0 {
-		maxVotes = 1
-	}
-
+func drawYAxis(surface *cairo.Surface, maxVotes int) {
 	surface.SelectFontFace("Bank Sans EF CY", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-	surface.SetFontSize(16)
+	surface.SetFontSize(12)
 
 	chartHeight := float64(CanvasHeight - TopMargin - BottomMargin)
 
@@ -278,25 +262,14 @@ func formatInt(n int) string {
 	return result
 }
 
-func drawVoteCounts(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int) {
+func drawVoteCounts(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx, maxVotes int) {
 	surface.SelectFontFace("Bank Sans EF CY", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-	surface.SetFontSize(18)
+	surface.SetFontSize(13)
 
 	chartWidth := float64(CanvasWidth - LeftMargin - RightMargin)
 	chartHeight := float64(CanvasHeight - TopMargin - BottomMargin)
 	numBars := maxIdx - minIdx + 1
 	barWidth := (chartWidth - float64(numBars-1)*BarGap) / float64(numBars)
-
-	maxVotes := 0
-	for i := minIdx; i <= maxIdx; i++ {
-		level := DifficultyLevels[i]
-		if v := votes[level]; v > maxVotes {
-			maxVotes = v
-		}
-	}
-	if maxVotes == 0 {
-		maxVotes = 1
-	}
 
 	for i := minIdx; i <= maxIdx; i++ {
 		level := DifficultyLevels[i]
@@ -337,7 +310,7 @@ func drawAverageLine(surface *cairo.Surface, avg float64, avgLabel string, minId
 
 	// Draw label with shadow
 	surface.SelectFontFace("Bank Sans EF CY", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-	surface.SetFontSize(18)
+	surface.SetFontSize(13)
 
 	labelText := "AVG: " + formatFloat(avg) + " (" + strings.ToUpper(avgLabel) + ")"
 	extents := surface.TextExtents(labelText)
