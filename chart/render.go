@@ -132,7 +132,7 @@ func drawBars(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int) 
 		surface.Fill()
 	}
 
-	// Draw each bar with gradient
+	// Draw each bar
 	for i := minIdx; i <= maxIdx; i++ {
 		level := DifficultyLevels[i]
 		voteCount := votes[level]
@@ -141,37 +141,14 @@ func drawBars(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int) 
 		barHeight := (float64(voteCount) / float64(maxVotes)) * chartHeight
 		y := float64(TopMargin) + chartHeight - barHeight
 
-		// Get base color
+		// Set bar color
 		r, g, b := ParseHexColor(DifficultyColors[level])
-		rf, gf, bf := float64(r)/255, float64(g)/255, float64(b)/255
-
-		// Create vertical gradient (lighter at top, darker at bottom)
-		gradient := cairo.NewPatternLinear(cairo.Linear{
-			X0: x, Y0: y,
-			X1: x, Y1: y + barHeight,
-		})
-		// Lighter color at top (add 30% brightness)
-		gradient.AddColorStopRGB(0, minF(rf*1.3, 1.0), minF(gf*1.3, 1.0), minF(bf*1.3, 1.0))
-		// Base color at middle
-		gradient.AddColorStopRGB(0.4, rf, gf, bf)
-		// Darker color at bottom (reduce by 30%)
-		gradient.AddColorStopRGB(1, rf*0.7, gf*0.7, bf*0.7)
-
-		surface.SetSource(gradient)
+		surface.SetSourceRGB(float64(r)/255, float64(g)/255, float64(b)/255)
 
 		// Draw rounded rectangle (top corners only)
 		drawRoundedTopRect(surface, x, y, barWidth, barHeight, BarRadius)
 		surface.Fill()
-
-		gradient.Destroy()
 	}
-}
-
-func minF(a, b float64) float64 {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 func drawRoundedTopRect(surface *cairo.Surface, x, y, w, h, r float64) {
