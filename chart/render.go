@@ -318,12 +318,20 @@ func drawAverageLine(surface *cairo.Surface, avg float64, avgLabel string, minId
 	r, g, b := ParseHexColor(DifficultyColors[avgLabel])
 	rf, gf, bf := float64(r)/255, float64(g)/255, float64(b)/255
 
-	// Draw dashed line in difficulty color
+	dashes := []float64{8, 5}
+
+	// Draw white outline/stroke first (thicker, behind)
+	surface.SetSourceRGB(1, 1, 1)
+	surface.SetLineWidth(6)
+	surface.SetDash(dashes, len(dashes), 0)
+	surface.MoveTo(x, float64(TopMargin))
+	surface.LineTo(x, float64(TopMargin)+chartHeight)
+	surface.Stroke()
+
+	// Draw colored line on top
 	surface.SetSourceRGB(rf, gf, bf)
 	surface.SetLineWidth(3)
-	dashes := []float64{8, 5}
 	surface.SetDash(dashes, len(dashes), 0)
-
 	surface.MoveTo(x, float64(TopMargin))
 	surface.LineTo(x, float64(TopMargin)+chartHeight)
 	surface.Stroke()
