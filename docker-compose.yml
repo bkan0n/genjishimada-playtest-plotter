@@ -1,0 +1,13 @@
+services:
+  genjishimada-playtest-plotter:
+    build: .
+    container_name: genjishimada-playtest-plotter
+    environment:
+      - PORT=8080
+    networks:
+      - genji-network
+    restart: unless-stopped
+
+networks:
+  genji-network:
+    external: true
