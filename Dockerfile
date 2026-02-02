@@ -18,11 +18,13 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y \
     libcairo2 \
     libwebp7 \
+    fontconfig \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /chart-service /chart-service
-COPY fonts/ /fonts/
+COPY fonts/ /usr/local/share/fonts/
+RUN fc-cache -f -v
 
 EXPOSE 8080
 CMD ["/chart-service"]

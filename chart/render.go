@@ -4,6 +4,7 @@ package chart
 import (
 	"bytes"
 	"image"
+	"strings"
 
 	"github.com/kolesa-team/go-webp/encoder"
 	"github.com/kolesa-team/go-webp/webp"
@@ -22,8 +23,11 @@ const (
 )
 
 var (
-	BackgroundColor = [3]float64{0.168, 0.176, 0.192} // #2b2d31
-	TextColor       = [3]float64{1.0, 1.0, 1.0}       // white
+	BackgroundColor   = [3]float64{0.168, 0.176, 0.192} // #2b2d31
+	TextColor         = [3]float64{1.0, 1.0, 1.0}       // white
+	TextShadowColor   = [4]float64{0, 0, 0, 0.5}        // black with 50% opacity
+	TextShadowOffsetX = 2.0
+	TextShadowOffsetY = 2.0
 )
 
 // RenderChart generates a WebP chart image from vote data
@@ -87,6 +91,19 @@ func surfaceToImage(surface *cairo.Surface) *image.RGBA {
 		}
 	}
 	return img
+}
+
+// drawTextWithShadow draws text with a drop shadow effect
+func drawTextWithShadow(surface *cairo.Surface, text string, x, y float64) {
+	// Draw shadow first
+	surface.SetSourceRGBA(TextShadowColor[0], TextShadowColor[1], TextShadowColor[2], TextShadowColor[3])
+	surface.MoveTo(x+TextShadowOffsetX, y+TextShadowOffsetY)
+	surface.ShowText(text)
+
+	// Draw main text
+	surface.SetSourceRGB(TextColor[0], TextColor[1], TextColor[2])
+	surface.MoveTo(x, y)
+	surface.ShowText(text)
 }
 
 const (
@@ -169,8 +186,7 @@ func drawRoundedTopRect(surface *cairo.Surface, x, y, w, h, r float64) {
 }
 
 func drawXAxisLabels(surface *cairo.Surface, minIdx, maxIdx int) {
-	surface.SetSourceRGB(TextColor[0], TextColor[1], TextColor[2])
-	surface.SelectFontFace("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+	surface.SelectFontFace("Bank Sans EF CY", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 	surface.SetFontSize(18)
 
 	chartWidth := float64(CanvasWidth - LeftMargin - RightMargin)
@@ -182,11 +198,11 @@ func drawXAxisLabels(surface *cairo.Surface, minIdx, maxIdx int) {
 		x := float64(LeftMargin) + float64(i-minIdx)*(barWidth+BarGap) + barWidth/2
 
 		// Get text extents for centering
-		extents := surface.TextExtents(level)
+		upperLevel := strings.ToUpper(level)
+		extents := surface.TextExtents(upperLevel)
 		textX := x - extents.Width/2
 
-		surface.MoveTo(textX, float64(CanvasHeight-BottomMargin+30))
-		surface.ShowText(level)
+		drawTextWithShadow(surface, upperLevel, textX, float64(CanvasHeight-BottomMargin+30))
 	}
 }
 
@@ -233,8 +249,7 @@ func drawYAxis(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int)
 		maxVotes = 1
 	}
 
-	surface.SetSourceRGB(TextColor[0], TextColor[1], TextColor[2])
-	surface.SelectFontFace("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+	surface.SelectFontFace("Bank Sans EF CY", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 	surface.SetFontSize(16)
 
 	chartHeight := float64(CanvasHeight - TopMargin - BottomMargin)
@@ -247,8 +262,7 @@ func drawYAxis(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int)
 		label := formatInt(value)
 
 		extents := surface.TextExtents(label)
-		surface.MoveTo(float64(LeftMargin)-extents.Width-10, y+extents.Height/2)
-		surface.ShowText(label)
+		drawTextWithShadow(surface, label, float64(LeftMargin)-extents.Width-10, y+extents.Height/2)
 	}
 }
 
@@ -265,8 +279,7 @@ func formatInt(n int) string {
 }
 
 func drawVoteCounts(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx int) {
-	surface.SetSourceRGB(TextColor[0], TextColor[1], TextColor[2])
-	surface.SelectFontFace("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+	surface.SelectFontFace("Bank Sans EF CY", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
 	surface.SetFontSize(18)
 
 	chartWidth := float64(CanvasWidth - LeftMargin - RightMargin)
@@ -298,8 +311,7 @@ func drawVoteCounts(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx
 
 		label := formatInt(voteCount)
 		extents := surface.TextExtents(label)
-		surface.MoveTo(x-extents.Width/2, y)
-		surface.ShowText(label)
+		drawTextWithShadow(surface, label, x-extents.Width/2, y)
 	}
 }
 
@@ -314,33 +326,20 @@ func drawAverageLine(surface *cairo.Surface, avg float64, avgLabel string, minId
 	xRatio := (avg - minValue) / (maxValue - minValue)
 	x := float64(LeftMargin) + xRatio*chartWidth
 
-	// Get the difficulty color for the average
-	r, g, b := ParseHexColor(DifficultyColors[avgLabel])
-	rf, gf, bf := float64(r)/255, float64(g)/255, float64(b)/255
-
-	dashes := []float64{8, 5}
-
-	// Draw white outline/stroke first (thicker, behind)
+	// Draw white dashed line
 	surface.SetSourceRGB(1, 1, 1)
-	surface.SetLineWidth(6)
+	surface.SetLineWidth(2)
+	dashes := []float64{8, 5}
 	surface.SetDash(dashes, len(dashes), 0)
 	surface.MoveTo(x, float64(TopMargin))
 	surface.LineTo(x, float64(TopMargin)+chartHeight)
 	surface.Stroke()
 
-	// Draw colored line on top
-	surface.SetSourceRGB(rf, gf, bf)
-	surface.SetLineWidth(3)
-	surface.SetDash(dashes, len(dashes), 0)
-	surface.MoveTo(x, float64(TopMargin))
-	surface.LineTo(x, float64(TopMargin)+chartHeight)
-	surface.Stroke()
-
-	// Draw label in difficulty color (no need to reset dash for text)
-	surface.SelectFontFace("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+	// Draw label with shadow
+	surface.SelectFontFace("Bank Sans EF CY", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
 	surface.SetFontSize(18)
 
-	labelText := "Avg: " + formatFloat(avg) + " (" + avgLabel + ")"
+	labelText := "AVG: " + formatFloat(avg) + " (" + strings.ToUpper(avgLabel) + ")"
 	extents := surface.TextExtents(labelText)
 
 	labelX := x - extents.Width/2
@@ -354,8 +353,7 @@ func drawAverageLine(surface *cairo.Surface, avg float64, avgLabel string, minId
 		labelX = float64(CanvasWidth-RightMargin) - extents.Width
 	}
 
-	surface.MoveTo(labelX, labelY)
-	surface.ShowText(labelText)
+	drawTextWithShadow(surface, labelText, labelX, labelY)
 }
 
 func formatFloat(f float64) string {
