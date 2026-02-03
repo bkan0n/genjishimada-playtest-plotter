@@ -1,28 +1,16 @@
 name: Release
 
 on:
-  push:
-    tags: ["v*"]
+  release:
+    types: [published]
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-binaries:
+  build-binary:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - goos: linux
-            goarch: amd64
-          - goos: linux
-            goarch: arm64
-          - goos: darwin
-            goarch: amd64
-          - goos: darwin
-            goarch: arm64
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,25 +26,15 @@ jobs:
           sudo apt-get install -y libcairo2-dev libwebp-dev
 
       - name: Build
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 1
         run: |
-          # Cross-compilation with CGO requires specific setup
-          if [ "$GOOS" = "linux" ] && [ "$GOARCH" = "amd64" ]; then
-            go build -o chart-service-${{ matrix.goos }}-${{ matrix.goarch }} .
-          else
-            echo "Skipping $GOOS/$GOARCH - CGO cross-compilation not supported in this workflow"
-            touch chart-service-${{ matrix.goos }}-${{ matrix.goarch }}.skipped
-          fi
+          CGO_ENABLED=1 go build -o chart-service-linux-amd64 .
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload to release
+        uses: softprops/action-gh-release@v1
         with:
-          name: chart-service-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: chart-service-*
-          if-no-files-found: ignore
+          files: chart-service-linux-amd64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docker:
     runs-on: ubuntu-latest
@@ -92,23 +70,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-  create-release:
-    needs: [build-binaries, docker]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          generate_release_notes: true
-          files: artifacts/**/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

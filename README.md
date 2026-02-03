@@ -92,23 +92,29 @@ curl -X POST http://localhost:8080/chart \
 
 ## Releases
 
-Releases are automated via GitHub Actions. When a version tag is pushed:
+Releases are automated via [Release Please](https://github.com/googleapis/release-please) and GitHub Actions.
 
-1. Docker image is built and pushed to GHCR with version tags
-2. Linux amd64 binary is compiled and attached to the release
-3. GitHub Release is created with auto-generated release notes
+### How it works
 
-### Creating a release
+1. Push commits to `main` using [conventional commits](https://www.conventionalcommits.org/)
+2. Release Please automatically creates/updates a release PR
+3. Merge the PR to trigger a release
+4. Docker image + binary are built and published
 
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
+### Conventional commits
 
-### Available tags
+| Prefix | Version bump | Example |
+|--------|--------------|---------|
+| `fix:` | Patch (1.0.0 → 1.0.1) | `fix: handle empty votes` |
+| `feat:` | Minor (1.0.0 → 1.1.0) | `feat: add PNG output` |
+| `feat!:` | Major (1.0.0 → 2.0.0) | `feat!: change API response format` |
+| `chore:` | No release | `chore: update deps` |
+
+### Docker tags
 
 | Tag | Description |
 |-----|-------------|
 | `latest` | Most recent release |
 | `1.0.0` | Specific version |
 | `1.0` | Latest patch of minor version |
+| `main` | Latest commit on main branch |
