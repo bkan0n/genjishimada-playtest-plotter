@@ -1,4 +1,3 @@
-// handler/chart.go
 package handler
 
 import (
@@ -10,12 +9,10 @@ import (
 	"github.com/genjishimada/playtest-plotter/chart"
 )
 
-// ChartRequest represents the incoming request body
 type ChartRequest struct {
 	Votes map[string]int `json:"votes"`
 }
 
-// ParseAndValidate parses and validates the chart request
 func ParseAndValidate(r *http.Request) (map[string]int, error) {
 	var req ChartRequest
 
@@ -45,7 +42,6 @@ func ParseAndValidate(r *http.Request) (map[string]int, error) {
 	return req.Votes, nil
 }
 
-// ChartHandler handles POST /chart requests
 func ChartHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")

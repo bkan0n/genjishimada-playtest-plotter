@@ -1,4 +1,3 @@
-// chart/window_test.go
 package chart
 
 import "testing"

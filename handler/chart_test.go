@@ -1,4 +1,3 @@
-// handler/chart_test.go
 package handler
 
 import (

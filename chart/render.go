@@ -1,4 +1,3 @@
-// chart/render.go
 package chart
 
 import (
@@ -11,7 +10,6 @@ import (
 	"github.com/ungerik/go-cairo"
 )
 
-// Cached encoder options - created once at startup
 var webpEncoderOptions *encoder.Options
 
 func init() {
@@ -41,35 +39,28 @@ var (
 	TextShadowOffsetY = 1.5
 )
 
-// RenderChart generates a WebP chart image from vote data
 func RenderChart(votes map[string]int) ([]byte, error) {
-	// Create Cairo surface
 	surface := cairo.NewSurface(cairo.FORMAT_ARGB32, CanvasWidth, CanvasHeight)
 	defer surface.Finish()
 
-	// Fill background
 	surface.SetSourceRGB(BackgroundColor[0], BackgroundColor[1], BackgroundColor[2])
 	surface.Rectangle(0, 0, CanvasWidth, CanvasHeight)
 	surface.Fill()
 
-	// Calculate data
 	avg := CalculateWeightedAverage(votes)
 	avgLabel := AverageToLabel(avg)
 	minIdx, maxIdx := CalculateWindow(votes)
 	maxVotes := calculateMaxVotes(votes, minIdx, maxIdx)
 
-	// Draw chart elements
-	drawYAxisLines(surface, maxVotes, minIdx, maxIdx) // Draw grid lines first (behind bars)
+	drawYAxisLines(surface, maxVotes, minIdx, maxIdx)
 	drawBars(surface, votes, minIdx, maxIdx, maxVotes)
 	drawXAxisLabels(surface, minIdx, maxIdx)
 	drawYAxis(surface, maxVotes)
 	drawVoteCounts(surface, votes, minIdx, maxIdx, maxVotes)
 	drawAverageLine(surface, avg, avgLabel, minIdx, maxIdx)
 
-	// Convert to image.RGBA
 	img := surfaceToImage(surface)
 
-	// Encode to WebP with pre-allocated buffer
 	buf := bytes.NewBuffer(make([]byte, 0, 50*1024))
 	if err := webp.Encode(buf, img, webpEncoderOptions); err != nil {
 		return nil, err
@@ -78,7 +69,6 @@ func RenderChart(votes map[string]int) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// calculateMaxVotes finds the maximum vote count in the visible window
 func calculateMaxVotes(votes map[string]int, minIdx, maxIdx int) int {
 	maxVotes := 0
 	for i := minIdx; i <= maxIdx; i++ {
@@ -100,22 +90,18 @@ func surfaceToImage(surface *cairo.Surface) *image.RGBA {
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 
-	// Optimized single-loop pixel conversion
-	// Cairo ARGB32 (little endian): B, G, R, A → Go RGBA: R, G, B, A
 	pixelCount := width * height
 	for i := 0; i < pixelCount; i++ {
 		off := i * 4
-		img.Pix[off] = data[off+2]   // R
-		img.Pix[off+1] = data[off+1] // G
-		img.Pix[off+2] = data[off]   // B
-		img.Pix[off+3] = data[off+3] // A
+		img.Pix[off] = data[off+2]
+		img.Pix[off+1] = data[off+1]
+		img.Pix[off+2] = data[off]
+		img.Pix[off+3] = data[off+3]
 	}
 	return img
 }
 
-// drawTextWithShadow draws text with a drop shadow effect
 func drawTextWithShadow(surface *cairo.Surface, text string, x, y float64) {
-	// Draw shadow first
 	surface.SetSourceRGBA(TextShadowColor[0], TextShadowColor[1], TextShadowColor[2], TextShadowColor[3])
 	surface.MoveTo(x+TextShadowOffsetX, y+TextShadowOffsetY)
 	surface.ShowText(text)
@@ -133,13 +119,11 @@ const (
 )
 
 func drawBars(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx, maxVotes int) {
-	// Calculate dimensions
 	chartWidth := float64(CanvasWidth - LeftMargin - RightMargin)
 	chartHeight := float64(CanvasHeight - TopMargin - BottomMargin)
 	numBars := maxIdx - minIdx + 1
 	barWidth := (chartWidth - float64(numBars-1)*BarGap) / float64(numBars)
 
-	// Draw shadows first (so they appear behind all bars)
 	surface.SetSourceRGBA(0, 0, 0, ShadowAlpha)
 	for i := minIdx; i <= maxIdx; i++ {
 		level := DifficultyLevels[i]
@@ -152,12 +136,10 @@ func drawBars(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx, maxV
 		barHeight := (float64(voteCount) / float64(maxVotes)) * chartHeight
 		y := float64(TopMargin) + chartHeight - barHeight
 
-		// Draw shadow (offset down and right)
 		drawRoundedTopRect(surface, x+ShadowOffsetX, y+ShadowOffsetY, barWidth, barHeight, BarRadius)
 		surface.Fill()
 	}
 
-	// Draw each bar
 	for i := minIdx; i <= maxIdx; i++ {
 		level := DifficultyLevels[i]
 		voteCount := votes[level]
@@ -166,11 +148,9 @@ func drawBars(surface *cairo.Surface, votes map[string]int, minIdx, maxIdx, maxV
 		barHeight := (float64(voteCount) / float64(maxVotes)) * chartHeight
 		y := float64(TopMargin) + chartHeight - barHeight
 
-		// Set bar color
 		r, g, b := ParseHexColor(DifficultyColors[level])
 		surface.SetSourceRGB(float64(r)/255, float64(g)/255, float64(b)/255)
 
-		// Draw rounded rectangle (top corners only)
 		drawRoundedTopRect(surface, x, y, barWidth, barHeight, BarRadius)
 		surface.Fill()
 	}
@@ -184,12 +164,12 @@ func drawRoundedTopRect(surface *cairo.Surface, x, y, w, h, r float64) {
 		r = 0
 	}
 
-	surface.MoveTo(x, y+h)                            // bottom-left
-	surface.LineTo(x, y+r)                            // left side up to curve
-	surface.Arc(x+r, y+r, r, 3.14159, 1.5*3.14159)    // top-left curve
-	surface.LineTo(x+w-r, y)                          // top side
-	surface.Arc(x+w-r, y+r, r, 1.5*3.14159, 2*3.14159) // top-right curve
-	surface.LineTo(x+w, y+h)                          // right side
+	surface.MoveTo(x, y+h)
+	surface.LineTo(x, y+r)
+	surface.Arc(x+r, y+r, r, 3.14159, 1.5*3.14159)
+	surface.LineTo(x+w-r, y)
+	surface.Arc(x+w-r, y+r, r, 1.5*3.14159, 2*3.14159)
+	surface.LineTo(x+w, y+h)
 	surface.ClosePath()
 }
 
@@ -205,7 +185,6 @@ func drawXAxisLabels(surface *cairo.Surface, minIdx, maxIdx int) {
 		level := DifficultyLevels[i]
 		x := float64(LeftMargin) + float64(i-minIdx)*(barWidth+BarGap) + barWidth/2
 
-		// Get text extents for centering
 		upperLevel := strings.ToUpper(level)
 		extents := surface.TextExtents(upperLevel)
 		textX := x - extents.Width/2
@@ -218,8 +197,7 @@ func drawYAxisLines(surface *cairo.Surface, maxVotes, minIdx, maxIdx int) {
 	chartWidth := float64(CanvasWidth - LeftMargin - RightMargin)
 	chartHeight := float64(CanvasHeight - TopMargin - BottomMargin)
 
-	// Draw faint horizontal grid lines
-	surface.SetSourceRGBA(1, 1, 1, 0.15) // White with 15% opacity
+	surface.SetSourceRGBA(1, 1, 1, 0.15)
 	surface.SetLineWidth(1)
 
 	for i := 0; i <= 4; i++ {
@@ -238,7 +216,6 @@ func drawYAxis(surface *cairo.Surface, maxVotes int) {
 
 	chartHeight := float64(CanvasHeight - TopMargin - BottomMargin)
 
-	// Draw 5 tick marks
 	for i := 0; i <= 4; i++ {
 		value := (maxVotes * i) / 4
 		y := float64(TopMargin) + chartHeight - (float64(value)/float64(maxVotes))*chartHeight
@@ -292,14 +269,12 @@ func drawAverageLine(surface *cairo.Surface, avg float64, avgLabel string, minId
 	chartWidth := float64(CanvasWidth - LeftMargin - RightMargin)
 	chartHeight := float64(CanvasHeight - TopMargin - BottomMargin)
 
-	// Calculate x position based on average value
 	minValue := DifficultyRanges[DifficultyLevels[minIdx]].Lower
 	maxValue := DifficultyRanges[DifficultyLevels[maxIdx]].Upper
 
 	xRatio := (avg - minValue) / (maxValue - minValue)
 	x := float64(LeftMargin) + xRatio*chartWidth
 
-	// Draw white dashed line
 	surface.SetSourceRGB(1, 1, 1)
 	surface.SetLineWidth(2)
 	dashes := []float64{8, 5}
@@ -318,7 +293,6 @@ func drawAverageLine(surface *cairo.Surface, avg float64, avgLabel string, minId
 	labelX := x - extents.Width/2
 	labelY := float64(TopMargin) - 45
 
-	// Keep label in bounds
 	if labelX < float64(LeftMargin) {
 		labelX = float64(LeftMargin)
 	}
@@ -330,7 +304,6 @@ func drawAverageLine(surface *cairo.Surface, avg float64, avgLabel string, minId
 }
 
 func formatFloat(f float64) string {
-	// Simple formatting to 2 decimal places
 	intPart := int(f)
 	decPart := int((f - float64(intPart)) * 100)
 	if decPart < 0 {

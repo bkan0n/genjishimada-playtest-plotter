@@ -1,7 +1,5 @@
-// chart/average.go
 package chart
 
-// CalculateWeightedAverage computes the weighted average of votes
 func CalculateWeightedAverage(votes map[string]int) float64 {
 	var totalWeight float64
 	var totalVotes int
@@ -19,7 +17,6 @@ func CalculateWeightedAverage(votes map[string]int) float64 {
 	return totalWeight / float64(totalVotes)
 }
 
-// AverageToLabel maps a numeric average to its difficulty label
 func AverageToLabel(avg float64) string {
 	for _, level := range DifficultyLevels {
 		r := DifficultyRanges[level]
@@ -35,5 +32,5 @@ func AverageToLabel(avg float64) string {
 			}
 		}
 	}
-	return "Hell" // fallback for edge cases
+	return "Hell"
 }

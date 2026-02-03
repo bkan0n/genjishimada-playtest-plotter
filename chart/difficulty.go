@@ -1,9 +1,7 @@
-// chart/difficulty.go
 package chart
 
 import "strconv"
 
-// DifficultyLevels ordered from easiest to hardest
 var DifficultyLevels = []string{
 	"Easy -", "Easy", "Easy +",
 	"Medium -", "Medium", "Medium +",
@@ -21,13 +19,11 @@ var difficultyIndexMap = func() map[string]int {
 	return m
 }()
 
-// DifficultyIndex returns the index of a difficulty level (0-15) and whether it exists
 func DifficultyIndex(name string) (int, bool) {
 	idx, ok := difficultyIndexMap[name]
 	return idx, ok
 }
 
-// DifficultyColors maps each level to its hex color
 var DifficultyColors = map[string]string{
 	"Easy -":      "#66ff66",
 	"Easy":        "#4dcc4d",
@@ -74,7 +70,6 @@ type DifficultyRange struct {
 	UpperInclusive bool
 }
 
-// DifficultyRanges for mapping average back to difficulty label
 var DifficultyRanges = map[string]DifficultyRange{
 	"Easy -":      {0.0, 1.18, false},
 	"Easy":        {1.18, 1.76, false},
@@ -94,7 +89,6 @@ var DifficultyRanges = map[string]DifficultyRange{
 	"Hell":        {9.41, 10.0, true},
 }
 
-// ParseHexColor parses a hex color string like "#ff00ff" to RGB values
 func ParseHexColor(hex string) (r, g, b uint8) {
 	if len(hex) != 7 || hex[0] != '#' {
 		return 0, 0, 0

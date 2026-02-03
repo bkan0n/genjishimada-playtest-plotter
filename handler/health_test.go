@@ -1,4 +1,3 @@
-// handler/health_test.go
 package handler
 
 import (
