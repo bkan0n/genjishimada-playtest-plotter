@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/bkan0n/genjishimada-playtest-plotter/compare/v1.1.0...v1.1.1) (2026-02-03)
+
+
+### Bug Fixes
+
+* release moment ([0eaac8d](https://github.com/bkan0n/genjishimada-playtest-plotter/commit/0eaac8d3d76111b9324e260e8a72ef1f5ae4cc7d))
+
 ## [1.1.0](https://github.com/bkan0n/genjishimada-playtest-plotter/compare/v1.0.0...v1.1.0) (2026-02-03)
 
 
