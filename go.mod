@@ -1,6 +1,6 @@
 module github.com/genjishimada/playtest-plotter
 
-go 1.25.6
+go 1.23
 
 require (
 	github.com/kolesa-team/go-webp v1.0.5 // indirect

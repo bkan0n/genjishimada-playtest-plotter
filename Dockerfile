@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.22-bookworm AS builder
+FROM golang:1.23-bookworm AS builder
 
 RUN apt-get update && apt-get install -y \
     libcairo2-dev \
